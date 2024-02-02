@@ -1,18 +1,23 @@
 plugins {
     id "java"
+    id "signing"
     id "maven-publish"
 }
 
-group "org.meteordev"
-version "0.2.2"
+group = "io.github.CDAGaming"
+version = "0.3.4" + (project.hasProperty("version_snapshot") ? "-SNAPSHOT" : "")
+description = "Fast text formatting language for Java."
+base.archivesName = "starscript"
 
-sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_8
+JavaVersion targetVersion = JavaVersion.VERSION_1_8
+int targetVersionInt = Integer.parseInt(targetVersion.majorVersion)
 
-java {
-    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_8
-
-    withSourcesJar()
-    withJavadocJar()
+[java].each {
+    it.toolchain {
+        languageVersion.set(JavaLanguageVersion.of(targetVersionInt))
+    }
+    it.withSourcesJar()
+    it.withJavadocJar()
 }
 
 repositories {
@@ -20,10 +25,10 @@ repositories {
 }
 
 dependencies {
-    testImplementation "org.openjdk.jmh:jmh-core:1.36"
-    testImplementation "org.openjdk.jmh:jmh-generator-annprocess:1.36"
+    testImplementation "org.openjdk.jmh:jmh-core:1.37"
+    testImplementation "org.openjdk.jmh:jmh-generator-annprocess:1.37"
 
-    testAnnotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:1.36"
+    testAnnotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:1.37"
 }
 
 compileJava {
@@ -35,29 +40,63 @@ compileTestJava {
 }
 
 javadoc {
+    options.encoding = "UTF-8"
     options.addStringOption('Xdoclint:none', '-quiet')
 }
 
 publishing {
     publications {
-        java(MavenPublication) {
+        mavenJava(MavenPublication) {
             from components.java
+
+            pom {
+                name = "starscript"
+                artifactId = "starscript"
+                packaging = 'jar'
+                description = project.description
+                url = 'https://github.com/CDAGaming/starscript'
+
+                scm {
+                    connection = 'scm:git:git://github.com/CDAGaming/starscript.git'
+                    developerConnection = 'scm:git:ssh://github.com/CDAGaming/starscript.git'
+                    url = 'https://github.com/CDAGaming/starscript'
+                }
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://github.com/CDAGaming/starscript/blob/master/LICENSE'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'cdagaming'
+                        name = 'CDAGaming'
+                        email = 'cstack2011@yahoo.com'
+                    }
+                    developer {
+                        id = 'MineGame159'
+                        name = 'MineGame159'
+                        email = 'example@example.com'
+                    }
+                }
+            }
         }
     }
-
     repositories {
         maven {
-            name = "meteor-maven"
-            url = "https://maven.meteordev.org/releases"
-
             credentials {
-                username = System.getenv("MAVEN_METEOR_ALIAS")
-                password = System.getenv("MAVEN_METEOR_TOKEN")
+                username = project.findProperty("mvn.user") ?: System.getenv("OSSRH_USERNAME")
+                password = project.findProperty("mvn.key") ?: System.getenv("OSSRH_PASSWORD")
             }
 
-            authentication {
-                basic(BasicAuthentication)
-            }
+            def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+            url = version.endsWith('-SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
         }
     }
+}
+
+signing {
+    useGpgCmd()
+    sign publishing.publications.mavenJava
 }
